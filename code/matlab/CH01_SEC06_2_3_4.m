@@ -5,7 +5,7 @@ load ../DATA/allFaces.mat
 % We use the first 36 people for training data
 trainingFaces = faces(:,1:sum(nfaces(1:36)));
 avgFace = mean(trainingFaces,2);  % size n*m by 1;
- 
+
 % Compute eigenfaces on mean-subtracted training data
 X = trainingFaces-avgFace*ones(1,size(trainingFaces,2));
 [U,S,V] = svd(X,'econ');
