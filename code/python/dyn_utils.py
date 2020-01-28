@@ -5,7 +5,10 @@ import numpy as np
 # Can be replaced by linalg.solve(a,b) if a is square,
 # linalg.lstsq(a,b) otherwise
 
+
 def dmd(x, x_prime, r):
+    """Compute dynamic matrix decomposition.
+    """
 
     # Step 1
     u, sigma, vh = np.linalg.svd(x, full_matrices=False)
