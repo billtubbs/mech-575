@@ -1,11 +1,18 @@
 # Python implementation of Alternating Direction Method
+# Adapted from MATLAB version by Niall Mangan from here:
+# https://github.com/niallmm/Hybrid-SINDy
+
+
 import numpy as np
 import matplotlib.pyplot as plt
+from optht import optht
+from adminitvary.py import ADMinitvary
 
 
 def null(a, rtol=1e-5):
-    """Compute the null space of a.  Similar to MATLAB's null function,
-    returns an orthonormal basis for the null space of A.
+    """Computes the null space of a matrix, similar to MATLAB's
+    null function. Returns an orthonormal basis for the null
+    space of A.
     """
     u, s, v = np.linalg.svd(a)
     rank = (s > rtol*s[0]).sum()
@@ -24,7 +31,7 @@ def adm(y, q_init, lam, max_iter, tol):
         #  q by projection to the sphere
         q = y.T.dot(x) / np.linalg.norm(y.T.dot(x), ord=2)
         res_q = np.linalg.norm(q_old - q, ord=2)
-        if (res_q <= tol):
+        if res_q <= tol:
             break
 
     return q
@@ -42,59 +49,65 @@ def ADMpareto(theta, tol, pflag):
     xi = np.zeros((theta.shape[1], 1))
     ind_theta = cell(1, 1)  # cell array of empty matrices
 
-    # initial lambda value, which is the value used for soft thresholding in ADM
+    # initial lambda value, which is the value used for soft thresholding
+    # in ADM
     lam = 1e-8
 
     # counter
     jj = 1
 
     # initialize the number of nonzero terms found for the lambda
-    num= 1
-    MaxIter = 1e4
+    num = 1
+    max_iter = 1e4
 
-    # use Donoho optimal shrinkage code to find null space in presence of
+    # Use Donoho optimal shrinkage code to find null space in presence of
     # noise.
-    U, S, Vh = np.linalg.svd(theta.T, 'econ')
+    U, S, Vh = np.linalg.svd(theta.T, full_matrices=False)
     m, n = theta.T.shape
 
     # m/n aspect ratio of matrix to be denoised
     ydi = np.diag(theta.T)
-    ydi[ydi < (optimal_SVHT_coef(m / n, 0) * median(ydi))] = 0
-    theta2 = (U * np.diag(ydi) * V.T).T
-    nT = null(theta2)
+    ydi[ydi < (optht(m / n, sigma=False) * np.median(ydi))] = 0
+    theta2 = (U * np.diag(ydi) * Vh).T
+    n_theta = null(theta2)
 
-    # vary lambda by factor of 2 until we hit the point
+    # Vary lambda by factor of 2 until we hit the point
     # where all coefficients are forced to zero.
     # could also use bisection as commented out below
     while num > 0:
         jj
-        # use ADM algorithm with varying intial conditions to find coefficient
-        # matrix
-        ind_theta1, xi1, num_terms1 = ADMinitvary(nT, lam, max_iter, tol, pflag)
-        
-        ind_theta[jj, 0] = ind_theta1  # save the indices of non zero coefficients
-        xi[:, jj] = xi1  # get those coefficients
-        num_terms[jj, 0] = num_terms1  # calculate how many terms are in the sparsest vector
+        # Use ADM algorithm with varying initial conditions to find
+        # coefficient matrix
+        ind_theta1, xi1, num_terms1 = ADMinitvary(n_theta, lam, max_iter, tol, pflag)
+
+        # Save the indices of non zero coefficients
+        ind_theta[jj, 0] = ind_theta1
+
+        # Get those coefficients
+        xi[:, jj] = xi1
+
+        # Calculate how many terms are in the sparsest vector
+        num_terms[jj, 0] = num_terms1
     
-        # calculate the error for the sparse vector found given this lambda
-        errorv[jj, 0] = np.sum(theta.dot(xi[:,jj]))
-        # store
+        # Calculate the error for the sparse vector found given this lambda
+        error_v[jj, 0] = np.sum(theta.dot(xi[:, jj]))
+        # Store
         lambda_vec[jj, 0] = lam
-        # index
+        # Index
         lam = 2 * lam
-        num = numterms[jj, 1]
+        num = num_terms[jj, 1]
         jj = jj + 1
 
 
     if pflag > 0:
         plt.figure(33)
-        plt.semilogy(numterms, abs(errorv), 'o')
+        plt.semilogy(num_terms, abs(errorv), 'o')
         plt.xlabel('Number of terms')
         plt.ylabel('Error')
         plt.title('Pareto Front')
         
         plt.figure(34)
-        plt.loglog(lambdavec, numterms, 'o') 
+        plt.loglog(lambda_vec, num_terms, 'o')
         plt.xlabel('Lambda values')
         plt.ylabel('Number of terms')
         plt.show()
