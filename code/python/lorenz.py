@@ -1,6 +1,10 @@
 """Python functions for simulating the Lorenz System.
 """
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+
 def lorenz_odes(t, y, sigma, beta, rho):
     """The Lorenz system of ordinary differential equations.
     
