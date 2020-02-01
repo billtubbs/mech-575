@@ -19,35 +19,54 @@ def null(a, rtol=1e-5):
 
 
 def adm(y, q_init, lam, max_iter, tol):
+    """Finds a sparse vector in a subspace with the
+    alternating minimization method (ADM).  I.e. solves the
+    following problem:
+
+        min_{q,x} 1/2*||Y*q - x||_2^2 + lambda * ||x||_1, s.t. ||q||_2 = 1
+
+    Args:
+        y (array): Input data.
+        q_init (array): Initialization for q, lambda.
+        lam (float): Penalty parameter (lambda).
+        max_iter (int): Max iteration.
+        tol (float): Tolerance for convergence.
+
+    Returns:
+        q (array): Output result.
+    """
+    # Based on original MATLAB code for adm.m from Finding a sparse vector
+    # in a subspace: Linear sparsity using alternating directions
+    # by Qing Qu, Ju Sun, and John Wright
+    # code found here  https://sites.google.com/site/homeqingqu/miscellaneous
     q = q_init
     for k in range(max_iter):
         q_old = q
-
         # Update y by soft thresholding
         x = soft_thresholding(y*q, lam)
-
-        # Update
-        #  q by projection to the sphere
+        # Update q by projection to the sphere
         q = y.T.dot(x) / np.linalg.norm(y.T.dot(x), ord=2)
+        # TODO: what shape should q be?  Keeps changing
+        print(q)
+        breakpoint()
         res_q = np.linalg.norm(q_old - q, ord=2)
         if res_q <= tol:
             break
-
     return q
 
 
-def soft_thresholding(X, d):
+def soft_thresholding(x, d):
     """soft-thresholding operator
     """
-    # return np.maximum(np.abs(X) - d, 0)
-    return np.sign(X) * np.maximum(np.abs(X) - d, 0)
+    # return np.maximum(np.abs(x) - d, 0)
+    return np.sign(x) * np.maximum(np.abs(x) - d, 0)
 
 
 def adm_pareto(theta, tol, plot=False):
     """Calculates the nullspace of theta with noise.
 
     Args
-        theta (array): 
+        theta (array):
         tol (float): Tolerance
         plot (bool or int): Show plots if plot is True or > 0.
 
@@ -65,14 +84,14 @@ def adm_pareto(theta, tol, plot=False):
     tolerance to improve the "resolution" of these from next best initial
     condtions.
 
-    Returns: 
+    Returns:
         xi, ind_theta, lambda_vec, num_terms, error_v
 
     Where:
         - xi is a vector of the coefficients for the nonzero terms at each lambda
         - ind_theta is a cell containing the indicies for the nonzero terms in
             theta for each value of lambda tried.
-        - lambda_vec is a lambda vector with the number of lambda values tried for that 
+        - lambda_vec is a lambda vector with the number of lambda values tried for that
         variable's set of data
         - num_terms is a vector of the number of terms for each lambda value tried.
     """
@@ -89,7 +108,7 @@ def adm_pareto(theta, tol, plot=False):
 
     # initialize the number of nonzero terms found for the lambda
     num = 1
-    max_iter = 1e4
+    max_iter = 10000
 
     # Use Donoho optimal shrinkage code to find null space in presence of
     # noise.
@@ -110,14 +129,14 @@ def adm_pareto(theta, tol, plot=False):
         # Use ADM algorithm with varying intial conditions to find coefficient
         # matrix
         ind_theta1, xi1, num_terms1 = adm_initvary(null_theta, lam, max_iter, tol, plot=plot)
-        
+
         # Save the indices of non zero coefficients
         ind_theta.append(ind_theta1)
         xi[:, jj] = xi1  # get those coefficients
 
         # Calculate how many terms are in the sparsest vector
         num_terms[jj, 0] = num_terms1
-    
+
         # Calculate the error for the sparse vector found given this lambda
         error_v[jj, 0] = np.sum(theta.dot(xi[:,jj]))
         # Store
@@ -135,7 +154,7 @@ def adm_pareto(theta, tol, plot=False):
         plt.title('Pareto Front')
 
         plt.figure(34)
-        plt.loglog(lambda_vec, num_terms, 'o') 
+        plt.loglog(lambda_vec, num_terms, 'o')
         plt.xlabel('Lambda values')
         plt.ylabel('Number of terms')
         plt.show()
@@ -152,17 +171,17 @@ def adm_initvary(null_theta, lam, max_iter, tol, plot=False):
     # for ii = 1:size(nT,2)
     #     nTn(:,ii) = nT(:,ii)/mean(nT(:,ii));
     # end
-    nTn = null_theta / null_theta.mean()
+    null_theta_n = null_theta / null_theta.mean()
 
-    # Run ADM algorithm on each row of nTn
-    for jj in range(nTn.shape[0]):
+    # Run ADM algorithm on each row of null_theta_n
+    for jj in range(null_theta_n.shape[0]):
         print(jj)
         # initial conditions
-        qinit = nTn[jj, :].T
+        q_init = null_theta_n[jj, :].T
 
         # Algorithm for finding coefficients resulting in
         # sparsest vector in null space
-        q[:, jj] = adm(null_theta, qinit, lam, max_iter, tol)
+        q[:, jj] = adm(null_theta, q_init, lam, max_iter, tol)
 
         # Compose sparsets vectors
         out[:, jj] = null_theta * q[:,jj]
@@ -208,11 +227,8 @@ if __name__ == '__main__':
         [9,    7,     6,    12],
         [4,   14,    15,     1]
     ])
-    null_a_calc = null(a)
-    null_a_true = np.array([
-        0.2236, 0.6708, -0.6708, -0.2236
-    ]).reshape(-1, 1)
-    assert np.allclose(null_a_calc, null_a_true, atol=0.0001)
+    null_a = null(a)
+    assert np.isclose(np.linalg.norm(a.dot(null_a)), 0)
 
     y = np.array([
         [0.8147,    0.0975],
@@ -235,8 +251,9 @@ if __name__ == '__main__':
         [1.0648,  1.7298]
     ])
     assert np.allclose(x, x_test, atol=0.0001)
-    
-    adm_actual = adm(y, 2, lam, max_iter, tol)
+
+    # q should not be 2 here
+    adm_actual = adm(y, q, lam, max_iter, tol)
     adm_target = np.array([
         [0.6365,  0.4115],
         [0.4255,  0.5181]
