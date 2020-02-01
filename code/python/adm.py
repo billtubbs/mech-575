@@ -1,11 +1,18 @@
 # Python implementation of Alternating Direction Method
+# Adapted from MATLAB version by Niall Mangan from here:
+# https://github.com/niallmm/Hybrid-SINDy
+
+
 import numpy as np
 import matplotlib.pyplot as plt
+from optht import optht
+from adminitvary.py import ADMinitvary
 
 
 def null(a, rtol=1e-5):
-    """Compute the null space of a.  Similar to MATLAB's null function,
-    returns an orthonormal basis for the null space of A.
+    """Computes the null space of a matrix, similar to MATLAB's
+    null function. Returns an orthonormal basis for the null
+    space of A.
     """
     u, s, v = np.linalg.svd(a)
     rank = (s > rtol*s[0]).sum()
@@ -24,7 +31,7 @@ def adm(y, q_init, lam, max_iter, tol):
         #  q by projection to the sphere
         q = y.T.dot(x) / np.linalg.norm(y.T.dot(x), ord=2)
         res_q = np.linalg.norm(q_old - q, ord=2)
-        if (res_q <= tol):
+        if res_q <= tol:
             break
 
     return q
@@ -74,28 +81,29 @@ def adm_pareto(theta, tol, plot=False):
     xi = np.zeros((theta.shape[1], 1))
     ind_theta = cell(1, 1)  # cell array of empty matrices
 
-    # initial lambda value, which is the value used for soft thresholding in ADM
+    # initial lambda value, which is the value used for soft thresholding
+    # in ADM
     lam = 1e-8
 
     # counter
     jj = 1
 
     # initialize the number of nonzero terms found for the lambda
-    num= 1
+    num = 1
     max_iter = 1e4
 
-    # use Donoho optimal shrinkage code to find null space in presence of
+    # Use Donoho optimal shrinkage code to find null space in presence of
     # noise.
-    U, S, Vh = np.linalg.svd(theta.T, 'econ')
+    U, S, Vh = np.linalg.svd(theta.T, full_matrices=False)
     m, n = theta.T.shape
 
     # m/n aspect ratio of matrix to be denoised
     ydi = np.diag(theta.T)
-    ydi[ydi < (optimal_SVHT_coef(m / n, 0) * median(ydi))] = 0
-    theta2 = (U * np.diag(ydi) * V.T).T
-    nT = null(theta2)
+    ydi[ydi < (optht(m / n, sigma=False) * np.median(ydi))] = 0
+    theta2 = (U * np.diag(ydi) * Vh).T
+    n_theta = null(theta2)
 
-    # vary lambda by factor of 2 until we hit the point
+    # Vary lambda by factor of 2 until we hit the point
     # where all coefficients are forced to zero.
     # could also use bisection as commented out below
     while num > 0:
