@@ -37,7 +37,39 @@ def soft_thresholding(X, d):
     return np.sign(X) * np.maximum(np.abs(X) - d, 0)
 
 
-def ADMpareto(theta, tol, pflag):
+def adm_pareto(theta, tol, plot=False):
+    """Calculates the nullspace of theta with noise.
+
+    Args
+        theta (array): 
+        tol (float): Tolerance
+        plot (bool or int): Show plots if plot is True or > 0.
+
+    Uses Donoho optimal shrinkage code to find the correct threshold for the
+    singular values in the presence of noise.
+    Uses ADM algorithm to compute the linear combination of basis vectors
+    spanning the nullspace of Theta that creates the sparsest resulting
+    vector. This sparse vector gives the coefficients Xi so that Theta*Xi = 0
+    and therefore select the terms in a sparse model.
+
+    If the plot flag is True or 1, it plots the Pareto front
+    If plot=2 then it will plot some diagnostic plots including the number
+    of terms for each attempted initial condition. If you have some initial
+    conditions that result in fairly sparse vectors, you can decrease the
+    tolerance to improve the "resolution" of these from next best initial
+    condtions.
+
+    Returns: 
+        xi, ind_theta, lambda_vec, num_terms, error_v
+
+    Where:
+        - xi is a vector of the coefficients for the nonzero terms at each lambda
+        - ind_theta is a cell containing the indicies for the nonzero terms in
+            theta for each value of lambda tried.
+        - lambda_vec is a lambda vector with the number of lambda values tried for that 
+        variable's set of data
+        - num_terms is a vector of the number of terms for each lambda value tried.
+    """
 
     xi = np.zeros((theta.shape[1], 1))
     ind_theta = cell(1, 1)  # cell array of empty matrices
@@ -50,7 +82,7 @@ def ADMpareto(theta, tol, pflag):
 
     # initialize the number of nonzero terms found for the lambda
     num= 1
-    MaxIter = 1e4
+    max_iter = 1e4
 
     # use Donoho optimal shrinkage code to find null space in presence of
     # noise.
@@ -67,39 +99,81 @@ def ADMpareto(theta, tol, pflag):
     # where all coefficients are forced to zero.
     # could also use bisection as commented out below
     while num > 0:
-        jj
-        # use ADM algorithm with varying intial conditions to find coefficient
+        print(jj)
+        # Use ADM algorithm with varying intial conditions to find coefficient
         # matrix
-        ind_theta1, xi1, num_terms1 = ADMinitvary(nT, lam, max_iter, tol, pflag)
+        ind_theta1, xi1, num_terms1 = adm_initvary(nT, lam, max_iter, tol, plot=plot)
         
-        ind_theta[jj, 0] = ind_theta1  # save the indices of non zero coefficients
+        # Save the indices of non zero coefficients
+        ind_theta[jj, 0] = ind_theta1
         xi[:, jj] = xi1  # get those coefficients
-        num_terms[jj, 0] = num_terms1  # calculate how many terms are in the sparsest vector
+
+        # Calculate how many terms are in the sparsest vector
+        num_terms[jj, 0] = num_terms1
     
-        # calculate the error for the sparse vector found given this lambda
-        errorv[jj, 0] = np.sum(theta.dot(xi[:,jj]))
-        # store
+        # Calculate the error for the sparse vector found given this lambda
+        error_v[jj, 0] = np.sum(theta.dot(xi[:,jj]))
+        # Store
         lambda_vec[jj, 0] = lam
-        # index
+        # Index
         lam = 2 * lam
-        num = numterms[jj, 1]
+        num = num_terms[jj, 1]
         jj = jj + 1
 
-
-    if pflag > 0:
+    if plot > 0:
         plt.figure(33)
-        plt.semilogy(numterms, abs(errorv), 'o')
+        plt.semilogy(num_terms, np.abs(error_v), 'o')
         plt.xlabel('Number of terms')
         plt.ylabel('Error')
         plt.title('Pareto Front')
-        
+
         plt.figure(34)
-        plt.loglog(lambdavec, numterms, 'o') 
+        plt.loglog(lambda_vec, num_terms, 'o') 
         plt.xlabel('Lambda values')
         plt.ylabel('Number of terms')
         plt.show()
 
     return xi, ind_theta, lambda_vec, num_terms, error_v
+
+
+def adm_initvary(nT, lam, max_iter, tol, plot=False):
+
+    # normalize the collumns of the null space of Theta to use in the
+    # initial conditoin for ADM search
+    for ii in range(nT.shape[1]):
+        nTn[:, ii] = nT[:, ii] / np.mean(nT[:, ii])
+
+    # run ADM algorithm on each row of nTn
+    for jj in range(nTn.shape[1]):
+        print(jj)
+        q_init = nTn[jj, :].T  # intial conditions
+        q[:, jj] = adm(nT, q_init, lam, max_iter, tol)  # algrorithm for
+        # finding coefficients resutling in  sparsest vector in null space
+        out[:, jj] = nT * q[:, jj]  # compose sparsets vectors
+        n_zeros[jj] = length(find(np.abs(out[:, jj]) < lam))  # chech how many zeros each
+        # of the found sparse vectors have
+
+    ind_sparse = find(n_zeros == np.max(n_zeros))  # find the vector with the largest number of zeros
+    ind_theta = find(np.abs(out[:, ind_sparse[0]]) >= lam)   # save the indices of non zero coefficients
+    # xi = out[ind_theta, ind_sparse[0]]  # get those coefficients
+    xi = out[:, ind_sparse[0]]  # get sparsest vector
+    small_inds = np.abs(out[:, ind_sparse[0]]) < lam
+    xi(small_inds) = 0  # set thresholded coefficients to zero
+
+
+    # check that the solution found by ADM is unique.
+    if length(indsparse) > 1:
+        xi_diff = out[ind_theta, ind_sparse[0]] - out[ind_theta, indsparse[1]]
+        if xi_diff > tol
+            print('WARNING: ADM has discovered two different sparsest vectors')
+    # calculate how many terms are in the sparsest vector
+    numterms = length(indTheta)
+
+    if plot:
+        plt.figure(121)
+        plt.semilogy(size(nT, 1) - nzeros, 'o')
+        plt.show()
+    return ind_theta, xi, num_terms
 
 
 if __name__ == '__main__':

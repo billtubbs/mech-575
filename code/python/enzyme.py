@@ -1,4 +1,9 @@
 """Python functions for simulating Enzyme Reaction Kinetics.
+
+This example is the example presented by Niall Mangan in the paper
+"Inferring biological networks by sparse identification of 
+nonlinear dynamics" by N. M. Mangan, S. L. Brunton, J. L. Proctor,
+and J. N. Kutz.
 """
 
 import numpy as np
@@ -11,7 +16,7 @@ def mmkinetics(t, x, v_max=1.5, k_m=0.3, j_in=0.6):
     Args:
         t (float or array): Time value (not used)
         x (float or array): State variable (concentration)
-        v_max (flaot): Maximum reaction rate
+        v_max (float): Maximum reaction rate
         k_m (float): Half max reaction rate
         j_in (float): Influx of substrate
     
