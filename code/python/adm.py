@@ -6,7 +6,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from optht import optht
-from adminitvary.py import ADMinitvary
 
 
 def null(a, rtol=1e-5):
@@ -16,7 +15,7 @@ def null(a, rtol=1e-5):
     """
     u, s, v = np.linalg.svd(a)
     rank = (s > rtol*s[0]).sum()
-    return rank, v[rank:].T.copy()
+    return v[rank:].T.copy()
 
 
 def adm(y, q_init, lam, max_iter, tol):
@@ -79,7 +78,7 @@ def adm_pareto(theta, tol, plot=False):
     """
 
     xi = np.zeros((theta.shape[1], 1))
-    ind_theta = cell(1, 1)  # cell array of empty matrices
+    ind_theta = []
 
     # initial lambda value, which is the value used for soft thresholding
     # in ADM
@@ -98,10 +97,10 @@ def adm_pareto(theta, tol, plot=False):
     m, n = theta.T.shape
 
     # m/n aspect ratio of matrix to be denoised
-    ydi = np.diag(theta.T)
+    ydi = np.diagonal(theta.T).copy()
     ydi[ydi < (optht(m / n, sigma=False) * np.median(ydi))] = 0
-    theta2 = (U * np.diag(ydi) * Vh).T
-    n_theta = null(theta2)
+    theta2 = U.dot(np.diag(ydi)).dot(Vh).T
+    null_theta = null(theta2)
 
     # Vary lambda by factor of 2 until we hit the point
     # where all coefficients are forced to zero.
@@ -110,10 +109,10 @@ def adm_pareto(theta, tol, plot=False):
         print(jj)
         # Use ADM algorithm with varying intial conditions to find coefficient
         # matrix
-        ind_theta1, xi1, num_terms1 = adm_initvary(nT, lam, max_iter, tol, plot=plot)
+        ind_theta1, xi1, num_terms1 = adm_initvary(null_theta, lam, max_iter, tol, plot=plot)
         
         # Save the indices of non zero coefficients
-        ind_theta[jj, 0] = ind_theta1
+        ind_theta.append(ind_theta1)
         xi[:, jj] = xi1  # get those coefficients
 
         # Calculate how many terms are in the sparsest vector
@@ -144,47 +143,77 @@ def adm_pareto(theta, tol, plot=False):
     return xi, ind_theta, lambda_vec, num_terms, error_v
 
 
-def adm_initvary(nT, lam, max_iter, tol, plot=False):
+def adm_initvary(null_theta, lam, max_iter, tol, plot=False):
 
-    # normalize the collumns of the null space of Theta to use in the
-    # initial conditoin for ADM search
-    for ii in range(nT.shape[1]):
-        nTn[:, ii] = nT[:, ii] / np.mean(nT[:, ii])
+    # normalize the columns of the null space of theta to
+    # use in the initial condition for ADM search.
+    # TODO: Is this correct?  Shouldn't it be divided by std dev.?
+    # Original MATLAB code:
+    # for ii = 1:size(nT,2)
+    #     nTn(:,ii) = nT(:,ii)/mean(nT(:,ii));
+    # end
+    nTn = null_theta / null_theta.mean()
 
-    # run ADM algorithm on each row of nTn
-    for jj in range(nTn.shape[1]):
+    # Run ADM algorithm on each row of nTn
+    for jj in range(nTn.shape[0]):
         print(jj)
-        q_init = nTn[jj, :].T  # intial conditions
-        q[:, jj] = adm(nT, q_init, lam, max_iter, tol)  # algrorithm for
-        # finding coefficients resutling in  sparsest vector in null space
-        out[:, jj] = nT * q[:, jj]  # compose sparsets vectors
-        n_zeros[jj] = length(find(np.abs(out[:, jj]) < lam))  # chech how many zeros each
-        # of the found sparse vectors have
+        # initial conditions
+        qinit = nTn[jj, :].T
 
-    ind_sparse = find(n_zeros == np.max(n_zeros))  # find the vector with the largest number of zeros
-    ind_theta = find(np.abs(out[:, ind_sparse[0]]) >= lam)   # save the indices of non zero coefficients
-    # xi = out[ind_theta, ind_sparse[0]]  # get those coefficients
-    xi = out[:, ind_sparse[0]]  # get sparsest vector
-    small_inds = np.abs(out[:, ind_sparse[0]]) < lam
-    xi(small_inds) = 0  # set thresholded coefficients to zero
+        # Algorithm for finding coefficients resulting in
+        # sparsest vector in null space
+        q[:, jj] = adm(null_theta, qinit, lam, max_iter, tol)
 
+        # Compose sparsets vectors
+        out[:, jj] = null_theta * q[:,jj]
+
+        # Check how many zeros each of the found sparse vectors have
+        n_zeros[jj] = (out[:, jj].abs() < lam).sum()
+
+    # Find the vector with the largest number of zeros
+    ind_sparse = np.argmax(n_zeros)
+
+    # Save the indices of non zero coefficients
+    ind_theta = np.where(out[:, ind_sparse[0].abs()] >= lam)
+    # Xi = out[indTheta, indsparse(1)]  # get those coefficients
+
+    # Get sparsest vector
+    xi = out[:, ind_sparse[0]]
+    small_inds = out[:, ind_sparse[1]].abs() < lam
+
+    # Set thresholded coefficients to zero
+    xi[small_inds] = 0
 
     # check that the solution found by ADM is unique.
-    if length(indsparse) > 1:
-        xi_diff = out[ind_theta, ind_sparse[0]] - out[ind_theta, indsparse[1]]
-        if xi_diff > tol
+    if len(ind_sparse) > 1:
+        xi_diff = out[ind_theta, ind_sparse[0]] - out[ind_theta, ind_sparse[1]]
+        if xi_diff > tol:
             print('WARNING: ADM has discovered two different sparsest vectors')
     # calculate how many terms are in the sparsest vector
-    numterms = length(indTheta)
+    num_terms = len(ind_theta)
 
     if plot:
         plt.figure(121)
-        plt.semilogy(size(nT, 1) - nzeros, 'o')
+        plt.semilogy(nT.shape[0] - n_zeros, 'o')
         plt.show()
     return ind_theta, xi, num_terms
 
 
 if __name__ == '__main__':
+
+    # Run some tests
+    a = np.array([
+        [16,   2,     3,    13],
+        [5,   11,    10,     8],
+        [9,    7,     6,    12],
+        [4,   14,    15,     1]
+    ])
+    null_a_calc = null(a)
+    null_a_true = np.array([
+        0.2236, 0.6708, -0.6708, -0.2236
+    ]).reshape(-1, 1)
+    assert np.allclose(null_a_calc, null_a_true, atol=0.0001)
+
     y = np.array([
         [0.8147,    0.0975],
         [0.9058,    0.2785],
@@ -215,4 +244,4 @@ if __name__ == '__main__':
     assert np.allclose(adm_actual, adm_target, atol=0.0001)
 
     theta = np.random.randn(10,8)
-    ADMpareto(theta, 1e-4, 0)
+    adm_pareto(theta, 1e-4, 0)
