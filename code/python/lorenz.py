@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 
 def lorenz_odes(t, y, sigma, beta, rho):
     """The Lorenz system of ordinary differential equations.
-    
+
     Returns:
-        dydt (tuple): Derivative (w.r.t. time)
+        dydt (tuple): Derivative w.r.t. time
     """
     y1, y2, y3 = y
     return (sigma * (y2 - y1), y1 * (rho - y3) - y2, y1 * y2 - beta * y3)
@@ -25,13 +25,13 @@ def lorenz_odes_vectorized(t, y, sigma, beta, rho):
     dydt[0, ...] = sigma * (y[1] - y[0])
     dydt[1, ...] = y[0] * (rho - y[2]) - y[1]
     dydt[2, ...] = y[0] * y[1] - beta * y[2]
-    
+
     return dydt
 
 
-def scatter_plot_3d(data, show=True, cmap='RdYlBu', 
-                    labels=('x', 'y', 'z'),
-                    figsize=(9, 7)):
+def scatter_plot_3d(data, labels=('x', 'y', 'z'),
+                    show=True, cmap='RdYlBu',
+                    figsize=(9, 7), filename=None):
     x = data[:, 0]
     y = data[:, 1]
     z = data[:, 2]
@@ -48,6 +48,10 @@ def scatter_plot_3d(data, show=True, cmap='RdYlBu',
     ax.set_xlabel(labels[0])
     ax.set_ylabel(labels[1])
     ax.set_zlabel(labels[2])
+
+    if filename is not None:
+        plt.tight_layout()
+        plt.savefig(filename)
 
     if show:
         plt.show()
