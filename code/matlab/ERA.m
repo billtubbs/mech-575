@@ -1,10 +1,10 @@
 function [Ar,Br,Cr,Dr,HSVs] = ERA(YY,m,n,nin,nout,r)
- for i=1:nout
-     for j=1:nin
-         Dr(i,j) = YY(i,j,1);
-         Y(i,j,:) = YY(i,j,2:end);
-     end
- end
+for i=1:nout
+    for j=1:nin
+        Dr(i,j) = YY(i,j,1);
+        Y(i,j,:) = YY(i,j,2:end);
+    end
+end
 
 % Yss = Y(1,1,end);
 % Y = Y-Yss;
