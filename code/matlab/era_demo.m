@@ -41,3 +41,8 @@ bode(sysFull, sysERA);
 set(gcf,'position',[100,100,800,400]);
 set(gcf,'PaperPositionMode','auto')
 saveas(gcf,'../../plots/era_sys2_bode.png')
+
+
+%% Gramians
+Wc = gram(sysERA,'c') % Controllability Gramian
+Wo = gram(sysERA,'o') % Observability Gramian
