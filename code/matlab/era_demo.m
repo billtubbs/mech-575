@@ -46,3 +46,12 @@ saveas(gcf,'../../plots/era_sys2_bode.png')
 %% Gramians
 Wc = gram(sysERA,'c') % Controllability Gramian
 Wo = gram(sysERA,'o') % Observability Gramian
+
+figure
+plot(diag(Wc))
+hold on
+plot(diag(Wo))
+legend(["W_c", "W_o"])
+grid
+title("Diagonals of Gramians - reduced system model")
+saveas(gcf,'../../plots/era_sys2_gramdiag.png')
