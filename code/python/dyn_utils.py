@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 
 # When translating from MATLAB:
 # a\b
@@ -33,28 +34,145 @@ def dmd(x, x_prime, r):
     return phi, lam, b
 
 
-def DMD_SB(X,Xprime,r):
-    U,Sigma,VT = np.linalg.svd(X,full_matrices=0) # Step 1
+def DMD_SB(X, Xprime, r):
+    U, Sigma,VT = np.linalg.svd(X, full_matrices=0) # Step 1
     Ur = U[:,:r]
     Sigmar = np.diag(Sigma[:r])
     VTr = VT[:r,:]
-    Atilde = np.linalg.solve(Sigmar.T,(Ur.T @ Xprime @ VTr.T).T).T # Step 2
+    Atilde = np.linalg.solve(Sigmar.T, (Ur.T @ Xprime @ VTr.T).T).T # Step 2
     Lambda, W = np.linalg.eig(Atilde) # Step 3
     Lambda = np.diag(Lambda)
     
-    Phi = Xprime @ np.linalg.solve(Sigmar.T,VTr).T @ W # Step 4
+    Phi = Xprime @ np.linalg.solve(Sigmar.T, VTr).T @ W # Step 4
     alpha1 = Sigmar @ VTr[:,0]
-    b = np.linalg.solve(W @ Lambda,alpha1)
+    b = np.linalg.solve(W @ Lambda, alpha1)
     return Phi, Lambda, b
 
 
 def dmd_other(X, Y, truncate=None):
-    U2,Sig2,Vh2 = np.linalg.svd(X, False) # SVD of input matrix
+    U2, Sig2, Vh2 = np.linalg.svd(X, False) # SVD of input matrix
     r = len(Sig2) if truncate is None else truncate # rank truncation
-    U = U2[:,:r]
-    Sig = np.diag(Sig2)[:r,:r]
-    V = Vh2.conj().T[:,:r]
+    U = U2[:, :r]
+    Sig = np.diag(Sig2)[:r, :r]
+    V = Vh2.conj().T[:, :r]
     Atil = np.dot(np.dot(np.dot(U.conj().T, Y), V), np.linalg.inv(Sig)) # build A tilde
-    mu,W = np.linalg.eig(Atil)
+    mu, W = np.linalg.eig(Atil)
     Phi = np.dot(np.dot(np.dot(Y, V), np.linalg.inv(Sig)), W) # build DMD modes1
     return mu, Phi
+
+
+def hankel_matrix(y, m, n):
+    """Compute the Hankel matrix from impulse response data.
+    
+    Arguments
+        y : Impulse response data as either array of shape (nt, )
+            for SISO system, or (nt, nout, nin) for MIMO system.
+        m, n : Dimensions of Hankel matrix (nt >= m + n - 1).
+    
+    Returns
+        h : Hankel matrix as m x n array.
+    """
+    nt = y.shape[0]
+    assert nt >= m + n - 1
+    if len(y.shape) == 1:
+        y = y.reshape(nt, 1, 1)
+        p = q = 1  # SISO system
+    elif len(y.shape) == 3:
+        p, q = y.shape[1:3]  # MIMO system
+    else:
+        raise ValueError("y must be 1- or 3-dimensional")
+    s0, s1, s2 = y.strides
+    return as_strided(y, shape=(m, q, n, p), 
+                      strides=(s0, s2, s0, s1)).reshape(m*q, n*p)
+
+
+def hankel_using_loops(y, m, n):
+    """Compute the Hankel matrix from impulse response data.
+    
+    Arguments
+        y : Impulse response data as array of shape (nout, nin, nt).
+        m, n : Dimensions of Hankel matrix (nt >= m + n - 1).
+    
+    Returns
+        h : Hankel matrix as m x n array.
+    """
+    nt = y.shape[2]
+    assert nt >= m + n - 1
+    q, p = y.shape[0:2]  # number of inputs, outputs
+    h = np.zeros((q*m, p*n), dtype=int)
+    for i in range(m):
+        for j in range(n):
+            h[q*i:q*(i+1), p*j:p*(j+1)] = y[:, :, i+j]
+    return h
+
+
+def unit_tests():
+
+    # Test hankel_matrix
+    y = np.arange(5)
+    h = hankel_matrix(y, 3, 3)
+    h_true = np.array([
+        [0, 1, 2],
+        [1, 2, 3],
+        [2, 3, 4]
+    ])
+    assert np.array_equal(h, h_true)
+
+    y = np.arange(5).astype(float)
+    h = hankel_matrix(y, 4, 2)
+    h_true = np.array([
+        [0., 1.],
+        [1., 2.],
+        [2., 3.],
+        [3., 4.]
+    ])
+    assert np.array_equal(h, h_true)
+
+    y = np.arange(20).reshape(5,2,2)
+    h = hankel_matrix(y, 3, 3)
+    h_true = np.array([
+        [ 0,  2,  4,  6,  8, 10],
+        [ 1,  3,  5,  7,  9, 11],
+        [ 4,  6,  8, 10, 12, 14],
+        [ 5,  7,  9, 11, 13, 15],
+        [ 8, 10, 12, 14, 16, 18],
+        [ 9, 11, 13, 15, 17, 19]
+    ])
+    assert np.array_equal(h, h_true)
+
+    y = np.arange(30).reshape(5,3,2)
+    h = hankel_matrix(y, 2, 4)
+    h_true = np.array([
+        [ 0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22],
+        [ 1,  3,  5,  7,  9, 11, 13, 15, 17, 19, 21, 23],
+        [ 6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
+        [ 7,  9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]
+    ])
+    assert np.array_equal(h, h_true)
+
+    y = np.arange(30).reshape(5,3,2)  # Excess data
+    h = hankel_matrix(y, 2, 3)
+    h_true = np.array([
+        [ 0,  2,  4,  6,  8, 10, 12, 14, 16],
+        [ 1,  3,  5,  7,  9, 11, 13, 15, 17],
+        [ 6,  8, 10, 12, 14, 16, 18, 20, 22],
+        [ 7,  9, 11, 13, 15, 17, 19, 21, 23]
+    ])
+    assert np.array_equal(h, h_true)
+    
+    # Arbitrary sized time-series data
+    q = 3  # Number of inputs
+    p = 2  # Number of outputs
+    nt = 10  # Number of timesteps
+    m = n = 5  # Hankel matrix dimensions
+    y = np.arange(nt*p*q).reshape(nt,p,q)
+    assert y.shape == (nt, p, q)
+    yT = y.transpose()
+    assert yT.shape == (q, p, nt)
+    h1 = hankel_using_loops(yT, m, n)
+    h2 = hankel_matrix(y, m, n)
+    assert np.array_equal(h1, h2)
+
+
+if __name__ == "__main__":
+    unit_tests()
