@@ -70,7 +70,7 @@ def hankel_matrix(y, m, n):
         m, n : Dimensions of Hankel matrix (nt >= m + n - 1).
     
     Returns
-        h : Hankel matrix as m x n array.
+        h : Hankel matrix as array of shape (m*q, n*p).
     """
     nt = y.shape[0]
     assert nt >= m + n - 1
@@ -78,15 +78,16 @@ def hankel_matrix(y, m, n):
         y = y.reshape(nt, 1, 1)
         p = q = 1  # SISO system
     elif len(y.shape) == 3:
-        p, q = y.shape[1:3]  # MIMO system
+        q, p = y.shape[1:3]  # MIMO system (nout, nin)
     else:
         raise ValueError("y must be 1- or 3-dimensional")
     s0, s1, s2 = y.strides
     return as_strided(y, shape=(m, q, n, p), 
-                      strides=(s0, s2, s0, s1)).reshape(m*q, n*p)
+                      strides=(s0, s2, s0, s1),
+                      writeable=False).reshape(m*q, n*p)
 
 
-def hankel_using_loops(y, m, n):
+def hankel_matrix_loops(y, m, n):
     """Compute the Hankel matrix from impulse response data.
     
     Arguments
@@ -98,8 +99,8 @@ def hankel_using_loops(y, m, n):
     """
     nt = y.shape[2]
     assert nt >= m + n - 1
-    q, p = y.shape[0:2]  # number of inputs, outputs
-    h = np.zeros((q*m, p*n), dtype=int)
+    q, p = y.shape[0:2]  # number of outputs, inputs
+    h = np.zeros((q*m, p*n), dtype=y.dtype)
     for i in range(m):
         for j in range(n):
             h[q*i:q*(i+1), p*j:p*(j+1)] = y[:, :, i+j]
@@ -128,7 +129,7 @@ def unit_tests():
     ])
     assert np.array_equal(h, h_true)
 
-    y = np.arange(20).reshape(5,2,2)
+    y = np.arange(20).reshape([5,2,2])
     h = hankel_matrix(y, 3, 3)
     h_true = np.array([
         [ 0,  2,  4,  6,  8, 10],
@@ -140,23 +141,28 @@ def unit_tests():
     ])
     assert np.array_equal(h, h_true)
 
-    y = np.arange(30).reshape(5,3,2)
+    y = np.arange(30).reshape([5,2,3])
     h = hankel_matrix(y, 2, 4)
     h_true = np.array([
-        [ 0,  2,  4,  6,  8, 10, 12, 14, 16, 18, 20, 22],
-        [ 1,  3,  5,  7,  9, 11, 13, 15, 17, 19, 21, 23],
-        [ 6,  8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
-        [ 7,  9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]
+        [ 0,  3,  6,  9, 12, 15, 18, 21],
+        [ 1,  4,  7, 10, 13, 16, 19, 22],
+        [ 2,  5,  8, 11, 14, 17, 20, 23],
+        [ 6,  9, 12, 15, 18, 21, 24, 27],
+        [ 7, 10, 13, 16, 19, 22, 25, 28],
+        [ 8, 11, 14, 17, 20, 23, 26, 29]
     ])
     assert np.array_equal(h, h_true)
 
-    y = np.arange(30).reshape(5,3,2)  # Excess data
-    h = hankel_matrix(y, 2, 3)
+    yT = np.arange(30).reshape([5,2,3])  # Excess data
+    y = np.transpose(yT, axes=(1, 2, 0))
+    h = hankel_matrix(yT, 2, 3)
     h_true = np.array([
-        [ 0,  2,  4,  6,  8, 10, 12, 14, 16],
-        [ 1,  3,  5,  7,  9, 11, 13, 15, 17],
-        [ 6,  8, 10, 12, 14, 16, 18, 20, 22],
-        [ 7,  9, 11, 13, 15, 17, 19, 21, 23]
+        [ 0,  3,  6,  9, 12, 15],
+        [ 1,  4,  7, 10, 13, 16],
+        [ 2,  5,  8, 11, 14, 17],
+        [ 6,  9, 12, 15, 18, 21],
+        [ 7, 10, 13, 16, 19, 22],
+        [ 8, 11, 14, 17, 20, 23]
     ])
     assert np.array_equal(h, h_true)
     
@@ -165,12 +171,11 @@ def unit_tests():
     p = 2  # Number of outputs
     nt = 10  # Number of timesteps
     m = n = 5  # Hankel matrix dimensions
-    y = np.arange(nt*p*q).reshape(nt,p,q)
-    assert y.shape == (nt, p, q)
-    yT = y.transpose()
-    assert yT.shape == (q, p, nt)
-    h1 = hankel_using_loops(yT, m, n)
-    h2 = hankel_matrix(y, m, n)
+    yT = np.arange(nt*p*q).reshape(nt,p,q)
+    y = np.transpose(yT, axes=(1, 2, 0))
+    assert y.shape == (p, q, nt)
+    h1 = hankel_matrix_loops(y, m, n)
+    h2 = hankel_matrix(yT, m, n)
     assert np.array_equal(h1, h2)
 
 

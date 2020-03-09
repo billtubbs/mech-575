@@ -22,7 +22,7 @@ YY = permute(yFull,[2 3 1]); % Reorder to be size p x q x m
                              % (default is m x p x q)
 %% Compute ERA from impulse response
 mco = floor((length(yFull)-1)/2)
-[Ar,Br,Cr,Dr,HSVs] = ERA(YY,mco,mco,numInputs,numOutputs,r);
+[Ar,Br,Cr,Dr,HSVs] = ERA2(YY,mco,mco,numInputs,numOutputs,r);
 sysERA = ss(Ar,Br,Cr,Dr,-1);
 
 %% Plot impulse responses for both models
@@ -54,4 +54,5 @@ plot(diag(Wo))
 legend(["W_c", "W_o"])
 grid
 title("Diagonals of Gramians - reduced system model")
+set(gcf,'position',[100,100,400,250]);
 saveas(gcf,'../../plots/era_sys2_gramdiag.png')
