@@ -4,11 +4,13 @@
 # Date: January 29, 2020.
 # 
 # Run these two scripts in sequence:
-#  1. dmd_example_1.py - downloads video file and computes DMD
-#  2. dmd_example_2.py - Simulate the dynamic system
+#  1. dmd_example_1.py - downloads video file and saves frame data to file
+#  2. dmd_example_2.py - computes or loads DMD solution
 # 
-# This script loads the dynamic mode decomposition results from the data
-# file and plots the eigenvalues.  TODO: Simulate the system
+# This script loads the video frame data from the data file, computes
+# the dynamic mode decomposition and plots the eigenvalues.
+#
+# TODO: Simulate the system and display video of projected dynamics.
 
 
 import os

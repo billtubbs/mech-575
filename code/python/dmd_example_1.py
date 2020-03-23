@@ -4,12 +4,11 @@
 # Date: January 29, 2020.
 # 
 # Run these two scripts in sequence:
-#  1. dmd_example_1.py - downloads video file and computes DMD
-#  2. dmd_example_2.py - Simulate the dynamic system
+#  1. dmd_example_1.py - downloads video file and saves frame data to file
+#  2. dmd_example_2.py - computes or loads DMD solution
 #
-# This script downloads a video file from YouTube, computes the dynamic
-# mode decomposition (DMD) and saves the results as a binary data file
-# for use by the 2nd script.
+# This script downloads a video file from YouTube and saves the frame data
+# as a binary data file for use by the 2nd script.
 # 
 # Uses code adapted from this tutorial:
 # https://www.learnopencv.com/read-write-and-display-a-video-using-opencv-cpp-python/
