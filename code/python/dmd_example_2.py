@@ -1,4 +1,17 @@
-# DMD Demo on video data
+# DMD Demo on Video Data
+# 
+# Author: Bill Tubbs
+# Date: January 29, 2020.
+# 
+# Run these two scripts in sequence:
+#  1. dmd_example_1.py - downloads video file and saves frame data to file
+#  2. dmd_example_2.py - computes or loads DMD solution
+# 
+# This script loads the video frame data from the data file, computes
+# the dynamic mode decomposition and plots the eigenvalues.
+#
+# TODO: Simulate the system and display video of projected dynamics.
+
 
 import os
 import time
